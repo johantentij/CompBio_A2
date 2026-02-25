@@ -69,16 +69,28 @@ def Euler_Maruyama_step(state, t, healthy=True):
 N = 1000
 t = np.arange(N) * dt
 
-stateHist = np.empty((3, 2, N))
-stateHist[0, :, 0] = np.array([.8, .8])     # P_A, P_B
-stateHist[1, :, 0] = np.array([.8, .8])     # s_A, s_B
-stateHist[2, :, 0] = np.array([.8, .8])     # u_A, u_B
+N_repeats = 100
 
-for i in range(1, N):
-    stateHist[:, :, i] = Euler_Maruyama_step(stateHist[:, :, i - 1], t[i], healthy=False)
+stateHistEnsemble = np.empty((N_repeats, 3, 2, N))
 
-P, S, U = stateHist
+for n in range(N_repeats):
+    stateHist = stateHistEnsemble[n]
+    stateHist[0, :, 0] = np.array([.8, .8])     # P_A, P_B
+    stateHist[1, :, 0] = np.array([.8, .8])     # s_A, s_B
+    stateHist[2, :, 0] = np.array([.8, .8])     # u_A, u_B
 
+    for i in range(1, N):
+        stateHist[:, :, i] = Euler_Maruyama_step(stateHist[:, :, i - 1], t[i], healthy=False)
+
+stateHistLower, stateHistUpper = np.percentile(stateHistEnsemble, (2.5, 97.5), axis=0)
+stateHistMean = np.mean(stateHistEnsemble, axis=0)
+
+P, S, U = stateHistMean
+P_lower, S_lower, U_lower = stateHistLower
+P_upper, S_upper, U_upper = stateHistUpper
+
+plt.fill_between(t, U_lower[0], U_upper[0], alpha=.5)
+plt.fill_between(t, U_lower[1], U_upper[1], alpha=.5)
 plt.plot(t, U[0])
 plt.plot(t, U[1])
 plt.show()
