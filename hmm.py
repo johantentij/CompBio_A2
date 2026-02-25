@@ -77,30 +77,11 @@ def print_params(A,E):
         print('%5s ' % i + ''.join('%0.3f ' % E[i][s] for s in S))
     print('')
 
-def serialize(dictionary, sequence=False):
-    keys = sorted(dictionary.keys())
-    if sequence:      # Trellis
-        keys = sort_states(keys)
-        ix   = range(len(sequence)+2)
-        out  = ['\t'.join(list(' -' + sequence + '-'))]
-    elif 'B' in keys: # Transition matrix
-        keys = sort_states(keys)
-        ix   = keys
-        out  = ['\t'.join([' ']+keys)]
-    else:             # Emission matrix
-        ix  = sorted(dictionary[keys[0]].keys())
-        out = ['\t'.join([' ']+ix)]
-    for k in keys:
-        line = k + '\t' + '\t'.join(['%1.2e' % dictionary[k][i] for i in ix])
-        out.append(line)
-    return '\n'.join(out)
-
 def sort_states(states):
     "Sort a list of states, while making sure 'B' and 'E' respectively start and end the list."
     Q = sorted(states)
     Q.remove('B')
-    Q.remove('E')
-    return ['B'] + Q + ['E']
+    return ['B'] + Q
 
 def viterbi(X,A,E):
     """Given a single sequence, with Transition and Emission probabilities,
@@ -157,7 +138,6 @@ def main(args = False):
 
         label = labels[j]
         save('%s.path' % label, Q)
-        save('%s.matrix' % label, serialize(T,X))
         save('%s.p' % label, '%1.2e' % P)
         print('>%s\n Path = %s' % (label,Q))
         if verbosity: print(' Seq  = %s\n P    = %1.2e\n' % (X,P))
