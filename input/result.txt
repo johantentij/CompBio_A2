@@ -1,4 +1,0 @@
-deleuca@arch ~/D/M/2/C/CompBio_A2> python3 hmm.py input/sequence.fasta input/A.tsv input/E.tsv                                                      main!?
->seq1
- Path = EEEEE
-
