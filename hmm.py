@@ -4,33 +4,6 @@ from os import makedirs
 from math import log10
 from argparse import ArgumentParser, RawTextHelpFormatter
 
-def parse_args():
-    "Parses inputs from commandline and returns them as a Namespace object."
-
-    parser = ArgumentParser(prog = 'python3 hmm.py',
-        formatter_class = RawTextHelpFormatter, description =
-        '  Perform the specified algorithm, with given sequences and parameters.\n\n'
-        '  Example syntax:\n'
-        '    python3 hmm.py -vv viterbi seq.fasta A.tsv E.tsv\n'
-        '    python3 hmm.py baumwelch in.fa priorA priorE -o ./outputs -i 1')
-
-    # Positionals
-    parser.add_argument('fasta', help='path to a FASTA formatted input file')
-    parser.add_argument('transition', help='path to a TSV formatted transition matrix')
-    parser.add_argument('emission', help='path to a TSV formatted emission matrix')
-
-    # Optionals
-    parser.add_argument('-v', '--verbose', dest='verbosity', action='count', default=0,
-        help='print verbose output specific to the algorithm\n'
-             '  (print even more output if flag is given twice)')
-
-    parser.add_argument('-o', dest='out_dir',
-        help='path to a directory where output files are saved\n'
-             '  (directory will be made if it does not exist)\n'
-             '  (file names and contents depend on algorithm)')
-
-    return parser.parse_args()
-
 def load_fasta(path):
     """Load a FASTA formatted set of sequences. Returns two lists: sequences and labels.
     Warning: Will likely throw errors if the file is not FASTA formatted!"""
@@ -115,33 +88,30 @@ def viterbi(X,A,E):
 
     return(pi,P,V) # Return the state path, Viterbi probability, and Viterbi trellis
 
-def main(args = False):
+def main():
     
-    # Process arguments and load specified files
-    if not args: args = parse_args()
+    set_X = sequences = [
+        "AGCGC",
+        "AUUAU"
+    ]
+    labels = ["seq1", "seq2"]
 
-    verbosity = args.verbosity
-    set_X, labels = load_fasta(args.fasta)  # List of sequences, list of labels
-    A = load_tsv(args.transition) # Nested Q -> Q dictionary
-    E = load_tsv(args.emission)   # Nested Q -> S dictionary
-    
-    def save(filename, contents):
-        if args.out_dir:
-            makedirs(args.out_dir, exist_ok=True) # Make sure the output directory exists.
-            path = op.join(args.out_dir,filename)
-            with open(path,'w') as f: f.write(contents)
-        # Note this function does nothing if no out_dir is specified!
+    A = {
+        'B': {'B': 0.0, 'E': 0.5, 'I': 0.5},
+        'E': {'B': 0.0, 'E': 0.9, 'I': 0.1},
+        'I': {'B': 0.0, 'E': 0.2, 'I': 0.8}
+    }
+    E = {
+        'E': {'A': 0.25, 'U': 0.25, 'G': 0.25, 'C': 0.25},
+        'I': {'A': 0.4, 'U': 0.4, 'G': 0.05, 'C': 0.15}
+    }
 
     # VITERBI
     for j,X in enumerate(set_X):
         Q, P, T = viterbi(X,A,E)
-
         label = labels[j]
-        save('%s.path' % label, Q)
-        save('%s.p' % label, '%1.2e' % P)
-        print('>%s\n Path = %s' % (label,Q))
-        if verbosity: print(' Seq  = %s\n P    = %1.2e\n' % (X,P))
-        if verbosity >= 2: print_trellis(T, X)
+        print(Q)
+        print(P)
 
 if __name__ == '__main__':
 	main()
