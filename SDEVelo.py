@@ -1,6 +1,16 @@
 import numpy as np
 import matplotlib.pyplot as plt
 
+plt.rcParams.update({
+    "font.size": 14,
+    "axes.titlesize": 16,
+    "axes.labelsize": 14,
+    "xtick.labelsize": 12,
+    "ytick.labelsize": 12,
+    "legend.fontsize": 12,
+})
+
+
 dt = .01
 
 # SDEVelo model params
@@ -29,25 +39,12 @@ def hill_p(x, theta, n):
 def hill_n(x, theta, n):
     return theta ** n / (x ** n + theta ** n)
 
-def Euler_Maruyama_step(state, t, healthy=True):
+def Euler_Maruyama_step(state, t):
     P, S, U = state
 
     P_A, P_B = P
 
-    a_t = a * c / (1 + np.exp(b * (t - a)))
-    if healthy:
-        # healthy function -> P_A inhibits U_B
-        a_star = a_t * np.array([
-            hill_p(P_B, theta_B, n_B),
-            hill_n(P_A, theta_A, n_A)
-        ])
-
-    else:
-        # cancerous function -> inhibition is removed
-        a_star = a * c / (1 + np.exp(b * (t - a))) * np.array([
-            hill_p(P_B, theta_B, n_B),
-            1.0
-        ])
+    a_t = c / (1 + np.exp(b * (t - a)))
 
     beta_star = beta * np.array([
         hill_p(P_B, theta_B, n_B),
@@ -60,13 +57,13 @@ def Euler_Maruyama_step(state, t, healthy=True):
     dB_U = np.sqrt(dt) * np.random.normal(0, 1, 2)
 
     dS = (beta_star * U - gamma * S) * dt + sigma_2 * dB_S
-    dU = (a_star - beta_star * U) * dt + sigma_1 * dB_U
+    dU = (a_t - beta_star * U) * dt + sigma_1 * dB_U
     
     dState = np.array([dP, dS, dU])
 
-    return state + dState
+    return np.clip(state + dState, a_min=0, a_max=None)
 
-N = 1000
+N = 10000
 t = np.arange(N) * dt
 
 N_repeats = 100
@@ -80,7 +77,7 @@ for n in range(N_repeats):
     stateHist[2, :, 0] = np.array([.8, .8])     # u_A, u_B
 
     for i in range(1, N):
-        stateHist[:, :, i] = Euler_Maruyama_step(stateHist[:, :, i - 1], t[i], healthy=False)
+        stateHist[:, :, i] = Euler_Maruyama_step(stateHist[:, :, i - 1], t[i])
 
 stateHistLower, stateHistUpper = np.percentile(stateHistEnsemble, (2.5, 97.5), axis=0)
 stateHistMean = np.mean(stateHistEnsemble, axis=0)
@@ -89,8 +86,36 @@ P, S, U = stateHistMean
 P_lower, S_lower, U_lower = stateHistLower
 P_upper, S_upper, U_upper = stateHistUpper
 
-plt.fill_between(t, U_lower[0], U_upper[0], alpha=.5)
-plt.fill_between(t, U_lower[1], U_upper[1], alpha=.5)
-plt.plot(t, U[0])
-plt.plot(t, U[1])
+fig, (ax1, ax2) = plt.subplots(1, 2)
+
+ax1.fill_between(t, P_lower[0], P_upper[0], alpha=.5)
+ax1.plot(t, P[0], label="$P_A$")
+ax1.fill_between(t, S_lower[0], S_upper[0], alpha=.5)
+ax1.plot(t, S[0], label="$S_A$")
+ax1.fill_between(t, U_lower[0], U_upper[0], alpha=.5)
+ax1.plot(t, U[0], label="$U_A$")
+ax1.set_title("A")
+ax1.set_xlabel("$t$ (s)")
+ax1.set_ylabel("Concentration (M)")
+ax1.legend()
+
+ax2.fill_between(t, P_lower[1], P_upper[1], alpha=.5)
+ax2.plot(t, P[1], label="$P_A$")
+ax2.fill_between(t, S_lower[1], S_upper[1], alpha=.5)
+ax2.plot(t, S[1], label="$S_A$")
+ax2.fill_between(t, U_lower[1], U_upper[1], alpha=.5)
+ax2.plot(t, U[1], label="$U_A$")
+ax2.set_title("B")
+ax2.set_xlabel("$t$ (s)")
+ax2.set_ylabel("Concentration (M)")
+ax2.legend()
+plt.show()
+
+plt.plot(P[0], P[1])
+plt.scatter(P[0, 0], P[1, 0], label="Start", c="green", zorder=2)
+plt.scatter(P[0, -1], P[1, -1], label="End", c="red", zorder=2)
+plt.title("Mean trajectory")
+plt.xlabel("$P_A$ (M)")
+plt.ylabel("$P_B$ (M)")
+plt.legend()
 plt.show()
