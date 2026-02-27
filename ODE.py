@@ -3,6 +3,16 @@ import matplotlib.pyplot as plt
 
 from scipy.optimize import fsolve
 
+plt.rcParams.update({
+    "font.size": 14,
+    "axes.titlesize": 16,
+    "axes.labelsize": 14,
+    "xtick.labelsize": 12,
+    "ytick.labelsize": 12,
+    "legend.fontsize": 12,
+})
+
+
 dt = .01
 
 # ODE model params
@@ -31,7 +41,7 @@ def dHill_p_dx(x, theta, n):
 def dHill_n_dx(x, theta, n):
     return n * theta ** (n - 1) * x ** n * (x ** n + theta ** n) ** (-2)
 
-def Jacobian(state):
+def Jacobian(state, theta_A=theta_A, n_A=n_A):
     P_A, r_A, P_B, r_B = state
 
     return np.array([
@@ -70,14 +80,22 @@ def RK4_step(state, healthy=True, theta_A=theta_A, n_A=n_A):
 
     return state + (k1 + 2 * (k2 + k3) + k4) * dt / 6
 
-N = 10000
+isHealthy = False
+
+# find equilibrium point
+rootFunc = lambda state : dState_dt(state, healthy=isHealthy)
+root, _, success, _ = fsolve(rootFunc, (.2, .2, .2, .2), full_output=1)
+
+P_A_eq, r_A_eq, P_B_eq, r_B_eq = root
+
+N = 5000
 t = np.arange(N) * dt
 
 stateHist = np.empty((N, 4), dtype=np.float64)
 stateHist[0, :] = .8
 
 for i in range(1, N):
-    stateHist[i, :] = RK4_step(stateHist[i - 1, :], healthy=True)
+    stateHist[i, :] = RK4_step(stateHist[i - 1, :], healthy=isHealthy)
 
 P_A, r_A, P_B, r_B = stateHist.T
 
@@ -96,20 +114,17 @@ ax2.set_xlabel("time (s)")
 ax2.set_ylabel("Concentration (M)")
 ax2.legend()
 
-# phase plots
-fig, (ax1, ax2, ax3) = plt.subplots(1, 3)
+# phase plot
 
-ax1.plot(r_A, P_A)
-ax1.set_xlabel("$r_A$")
-ax1.set_ylabel("$P_A$")
+plt.figure()
+plt.plot(P_A, P_B)
+plt.scatter(P_A[0], P_B[0], label="Start", c="green", zorder=2)
+plt.scatter(P_A[-1], P_B[-1], label="End", c="red", zorder=2)
+plt.scatter(P_A_eq, P_B_eq, label="Equilibrium point", c="black", zorder=2)
+plt.xlabel("$P_A$ (M)")
+plt.ylabel("$P_B$ (M)")
+plt.legend()
 
-ax2.plot(P_A, P_B)
-ax2.set_xlabel("$P_A$")
-ax2.set_ylabel("$P_B$")
-
-ax3.plot(r_B, P_B)
-ax3.set_xlabel("$r_B$")
-ax3.set_ylabel("$P_B$")
 
 plt.tight_layout()
 plt.show()
@@ -123,38 +138,60 @@ plt.show()
 N_grid = 100
 
 theta_grid = np.linspace(.21, 2, N_grid)
+n_grid = np.linspace(1, 6, N_grid)
 
-maxReEigen = np.empty(N_grid, dtype=np.float64)
+stability = np.empty((N_grid, N_grid), dtype=np.int32)
+
+ding = np.empty(N_grid)
+
 for i, theta in enumerate(theta_grid):
-    rootFunc = lambda state : dState_dt(state, healthy=True, theta_A=theta, n_A=3)
-    root, _, success, _ = fsolve(rootFunc, (.5, .5, .5, .5), fprime=Jacobian, full_output=1)
+    for j, n in enumerate(n_grid):
 
-    if (success == 1):
-        J_stable = Jacobian(root)
-        eigens = np.linalg.eigvals(J_stable)
+        rootFunc = lambda state : dState_dt(state, healthy=True, theta_A=theta, n_A=n)
+        root, _, success, _ = fsolve(rootFunc, (.2, .2, .2, .2), full_output=1)
 
-        maxReEigen[i] = np.max(np.real(eigens))
-    
-    else:
-        maxReEigen[i] = np.nan
+        if (success == 1):
+            J_stable = Jacobian(root, theta_A=theta, n_A=3)
+            eigens = np.linalg.eigvals(J_stable)
 
-theta_crit = theta_grid[np.argmin(np.abs(maxReEigen))]
+            stabilityType = np.sum(np.real(eigens) < 0)
+            if (np.sum(np.abs(np.real(eigens)) < 1e-4) != 0):
+                print(eigens)
 
-plt.plot(theta_grid, maxReEigen)
-plt.vlines(theta_crit, np.min(maxReEigen), np.max(maxReEigen), 
-           linestyles="dashed", color="grey",
-           label=r"$\theta_\mathrm{crit} = $" + f"{theta_crit:.3f}")
-plt.xlabel("$\\theta_A$")
-plt.ylabel("max $\\lambda$")
-plt.legend()
+            if (stabilityType == 4):
+                stability[i, j] = 0
+
+            elif (stabilityType == 0):
+                stability[i, j] = 2
+
+            else:
+                stability[i, j] = 1
+
+            if (j == 0):
+                ding[i] = np.max(np.real(eigens))
+        
+        else:
+            stability[i, j] = -1
+
+im = plt.pcolor(theta_grid, n_grid, stability.T)
+plt.colorbar(im)
+plt.text(.75, 3.5, "Saddle-point", backgroundcolor="white")
+plt.text(1.5, 2, "Stable", backgroundcolor="white")
+plt.xlabel("$\\theta_A$ (M)")
+plt.ylabel("$n_A$")
 plt.show()
 
 # Hopf bifurcation
-theta_grid = [.21, .5, .7]
+theta_grid = [.21, .5, .7, 1.4]
 
-fig, axes = plt.subplots(1, 3)
+fig, axes = plt.subplots(1, 4)
 
-for i in range(3):
+for i in range(4):
+    rootFunc = lambda state : dState_dt(state, healthy=True, theta_A=theta_grid[i])
+    root, _, success, _ = fsolve(rootFunc, (.2, .2, .2, .2), full_output=1)
+
+    P_A_eq, r_A_eq, P_B_eq, r_B_eq = root
+
     ax = axes[i]
 
     stateHist = np.empty((N, 4), dtype=np.float64)
@@ -165,10 +202,15 @@ for i in range(3):
 
     P_A, r_A, P_B, r_B = stateHist.T
 
-    ax.plot(r_A, P_A)
-    ax.set_title(f"$\\theta_A = ${theta_grid[i]}")
-    ax.set_xlabel("$r_A$")
-    ax.set_ylabel("$P_A$")
+    ax.plot(P_A, P_B)
+    ax.set_title(f"$\\theta_A = ${theta_grid[i]} M")
+    ax.scatter(P_A[0], P_B[0], label="Start", c="green", zorder=2)
+    ax.scatter(P_A[-1], P_B[-1], label="End", c="red", zorder=2)
+    ax.scatter(P_A_eq, P_B_eq, label="Eq. point", c="black", zorder=2)
+    ax.set_xlabel("$P_A$ (M)")
+    if (i == 0):
+        ax.set_ylabel("$P_B$ (M)")
+    ax.legend()
 
-plt.tight_layout()
+# plt.tight_layout()
 plt.show()
