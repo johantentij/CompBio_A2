@@ -1,61 +1,3 @@
-import os.path as op
-
-from os import makedirs
-from math import log10
-from argparse import ArgumentParser, RawTextHelpFormatter
-
-def load_fasta(path):
-    """Load a FASTA formatted set of sequences. Returns two lists: sequences and labels.
-    Warning: Will likely throw errors if the file is not FASTA formatted!"""
-    labs = []
-    seqs = []
-    with open(path) as f:
-        for line in f:
-            if line.startswith('>'):
-                labs.append(line.strip()[1:])
-                seqs.append('')
-            else:
-                seqs[-1] += line.strip()
-    return seqs, labs
-
-def load_tsv(path):
-    "Load a TSV formatted set of (prior) parameters. Return as a nested dictionary."
-    out = {}
-    with open(path) as f:
-        header = f.readline().strip().split('\t') # Read, strip and split the header line
-        for line in f:
-            ls = line.rstrip().split('\t')
-            out[ls[0]] = {header[i]:float(v) for i,v in enumerate(ls[1:])}
-    return out
-
-def print_trellis(T,sequence):
-    "Pretty print function for a Viterbi/Forward/Backward dynamic programming matrix."
-    Q = sort_states(T.keys())
-    X = '-' + sequence + '-'
-    print('   '+''.join(['%-8s ' % s for s in X]))
-    for q in Q:
-        print('%2s ' % q + ''.join(['%1.2e ' % p for p in T[q]]))
-    print('')
-
-def print_params(A,E):
-    "Pretty print function for the Transition matrix (from a nested dictionary)."
-    QA = sort_states(A.keys())
-    print('\n[A]   ' + ''.join('%-5s ' % j for j in QA))
-    for i in QA:
-        print('%5s ' % i + ''.join('%0.3f ' % A[i][j] for j in QA))
-    QE = sorted(E.keys())
-    S = sorted(E[QE[0]].keys())
-    print('\n[E]   ' + ''.join('%-5s ' % s for s in S))
-    for i in QE:
-        print('%5s ' % i + ''.join('%0.3f ' % E[i][s] for s in S))
-    print('')
-
-def sort_states(states):
-    "Sort a list of states, while making sure 'B' and 'E' respectively start and end the list."
-    Q = sorted(states)
-    Q.remove('B')
-    return ['B'] + Q
-
 def viterbi(X,A,E):
     """Given a single sequence, with Transition and Emission probabilities,
     return the most probable state path, the corresponding P(X), and trellis."""
@@ -90,7 +32,7 @@ def viterbi(X,A,E):
 
 def main():
     
-    set_X = sequences = [
+    set_X = [
         "AGCGC",
         "AUUAU"
     ]
@@ -108,10 +50,12 @@ def main():
 
     # VITERBI
     for j,X in enumerate(set_X):
+        print("sequence:", X)
         Q, P, T = viterbi(X,A,E)
         label = labels[j]
-        print(Q)
-        print(P)
+        print("most likely path:", Q)
+        print("probability:", P)
+        print("\n")
 
 if __name__ == '__main__':
 	main()

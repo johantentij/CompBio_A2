@@ -142,8 +142,6 @@ n_grid = np.linspace(1, 6, N_grid)
 
 stability = np.empty((N_grid, N_grid), dtype=np.int32)
 
-ding = np.empty(N_grid)
-
 for i, theta in enumerate(theta_grid):
     for j, n in enumerate(n_grid):
 
@@ -151,7 +149,7 @@ for i, theta in enumerate(theta_grid):
         root, _, success, _ = fsolve(rootFunc, (.2, .2, .2, .2), full_output=1)
 
         if (success == 1):
-            J_stable = Jacobian(root, theta_A=theta, n_A=3)
+            J_stable = Jacobian(root, theta_A=theta, n_A=n)
             eigens = np.linalg.eigvals(J_stable)
 
             stabilityType = np.sum(np.real(eigens) < 0)
@@ -166,15 +164,11 @@ for i, theta in enumerate(theta_grid):
 
             else:
                 stability[i, j] = 1
-
-            if (j == 0):
-                ding[i] = np.max(np.real(eigens))
         
         else:
             stability[i, j] = -1
 
-im = plt.pcolor(theta_grid, n_grid, stability.T)
-plt.colorbar(im)
+plt.pcolor(theta_grid, n_grid, stability.T)
 plt.text(.75, 3.5, "Saddle-point", backgroundcolor="white")
 plt.text(1.5, 2, "Stable", backgroundcolor="white")
 plt.xlabel("$\\theta_A$ (M)")
