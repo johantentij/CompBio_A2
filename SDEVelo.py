@@ -63,7 +63,7 @@ def Euler_Maruyama_step(state, t):
 
     return np.clip(state + dState, a_min=0, a_max=None)
 
-N = 10000
+N = 5000
 t = np.arange(N) * dt
 
 N_repeats = 100
@@ -95,7 +95,7 @@ ax1.plot(t, S[0], label="$S_A$")
 ax1.fill_between(t, U_lower[0], U_upper[0], alpha=.5)
 ax1.plot(t, U[0], label="$U_A$")
 ax1.set_title("A")
-ax1.set_xlabel("$t$ (s)")
+ax1.set_xlabel("time (s)")
 ax1.set_ylabel("Concentration (M)")
 ax1.legend()
 
@@ -106,7 +106,7 @@ ax2.plot(t, S[1], label="$S_A$")
 ax2.fill_between(t, U_lower[1], U_upper[1], alpha=.5)
 ax2.plot(t, U[1], label="$U_A$")
 ax2.set_title("B")
-ax2.set_xlabel("$t$ (s)")
+ax2.set_xlabel("time (s)")
 ax2.set_ylabel("Concentration (M)")
 ax2.legend()
 plt.show()

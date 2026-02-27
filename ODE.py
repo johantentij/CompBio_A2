@@ -80,7 +80,7 @@ def RK4_step(state, healthy=True, theta_A=theta_A, n_A=n_A):
 
     return state + (k1 + 2 * (k2 + k3) + k4) * dt / 6
 
-isHealthy = True
+isHealthy = False
 
 # find equilibrium point
 rootFunc = lambda state : dState_dt(state, healthy=isHealthy)
@@ -88,7 +88,7 @@ root, _, success, _ = fsolve(rootFunc, (.2, .2, .2, .2), full_output=1)
 
 P_A_eq, r_A_eq, P_B_eq, r_B_eq = root
 
-N = 10000
+N = 5000
 t = np.arange(N) * dt
 
 stateHist = np.empty((N, 4), dtype=np.float64)
@@ -142,6 +142,8 @@ n_grid = np.linspace(1, 6, N_grid)
 
 stability = np.empty((N_grid, N_grid), dtype=np.int32)
 
+ding = np.empty(N_grid)
+
 for i, theta in enumerate(theta_grid):
     for j, n in enumerate(n_grid):
 
@@ -149,10 +151,12 @@ for i, theta in enumerate(theta_grid):
         root, _, success, _ = fsolve(rootFunc, (.2, .2, .2, .2), full_output=1)
 
         if (success == 1):
-            J_stable = Jacobian(root, theta_A=theta, n_A=n)
+            J_stable = Jacobian(root, theta_A=theta, n_A=3)
             eigens = np.linalg.eigvals(J_stable)
 
             stabilityType = np.sum(np.real(eigens) < 0)
+            if (np.sum(np.abs(np.real(eigens)) < 1e-4) != 0):
+                print(eigens)
 
             if (stabilityType == 4):
                 stability[i, j] = 0
@@ -162,11 +166,15 @@ for i, theta in enumerate(theta_grid):
 
             else:
                 stability[i, j] = 1
+
+            if (j == 0):
+                ding[i] = np.max(np.real(eigens))
         
         else:
             stability[i, j] = -1
 
 im = plt.pcolor(theta_grid, n_grid, stability.T)
+plt.colorbar(im)
 plt.text(.75, 3.5, "Saddle-point", backgroundcolor="white")
 plt.text(1.5, 2, "Stable", backgroundcolor="white")
 plt.xlabel("$\\theta_A$ (M)")
@@ -174,11 +182,11 @@ plt.ylabel("$n_A$")
 plt.show()
 
 # Hopf bifurcation
-theta_grid = [.21, .5, .7]
+theta_grid = [.21, .5, .7, 1.4]
 
-fig, axes = plt.subplots(1, 3)
+fig, axes = plt.subplots(1, 4)
 
-for i in range(3):
+for i in range(4):
     rootFunc = lambda state : dState_dt(state, healthy=True, theta_A=theta_grid[i])
     root, _, success, _ = fsolve(rootFunc, (.2, .2, .2, .2), full_output=1)
 
@@ -198,9 +206,10 @@ for i in range(3):
     ax.set_title(f"$\\theta_A = ${theta_grid[i]} M")
     ax.scatter(P_A[0], P_B[0], label="Start", c="green", zorder=2)
     ax.scatter(P_A[-1], P_B[-1], label="End", c="red", zorder=2)
-    ax.scatter(P_A_eq, P_B_eq, label="Equilibrium point", c="black", zorder=2)
+    ax.scatter(P_A_eq, P_B_eq, label="Eq. point", c="black", zorder=2)
     ax.set_xlabel("$P_A$ (M)")
-    ax.set_ylabel("$P_B$ (M)")
+    if (i == 0):
+        ax.set_ylabel("$P_B$ (M)")
     ax.legend()
 
 # plt.tight_layout()
